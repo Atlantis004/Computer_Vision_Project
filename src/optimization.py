@@ -5,13 +5,11 @@ from scipy.sparse import lil_matrix
 
 def bundle_adjustment(recon_map, K, verbose=True):
     cameras = sorted(recon_map.camera_poses.keys())
-    if verbose: print(f"  > Bundle Adjustment: {len(cameras)} Cams, {len(recon_map.points_3d)} Pts")
     
     cam_id_map = {cam_id: i for i, cam_id in enumerate(cameras)}
-    n_opt_cams = len(cameras) - 1 # First cam fixed
+    n_opt_cams = len(cameras) - 1
     n_points = len(recon_map.points_3d)
     
-    # 1. Params
     x0 = []
     for cam_idx in cameras[1:]:
         R, t = recon_map.camera_poses[cam_idx]
@@ -22,7 +20,6 @@ def bundle_adjustment(recon_map, K, verbose=True):
         x0.extend(pt)
     x0 = np.array(x0)
 
-    # 2. Observations
     observations = []
     for cam_idx in cameras:
         for kp_idx, pt_idx in recon_map.point_correspondences[cam_idx].items():
@@ -30,7 +27,6 @@ def bundle_adjustment(recon_map, K, verbose=True):
             cam_opt_idx = cam_id_map[cam_idx] - 1
             observations.append((cam_opt_idx, pt_idx, pt_2d))
 
-    # 3. Residuals
     def fun(params):
         cam_params = params[:n_opt_cams * 6].reshape((n_opt_cams, 6))
         points = params[n_opt_cams * 6:].reshape((n_points, 3))
@@ -51,7 +47,6 @@ def bundle_adjustment(recon_map, K, verbose=True):
             residuals.extend([proj[0] - pt_2d[0], proj[1] - pt_2d[1]])
         return np.array(residuals)
 
-    # 4. Sparsity
     m = len(observations) * 2
     n = len(x0)
     A = lil_matrix((m, n), dtype=int)
@@ -64,7 +59,6 @@ def bundle_adjustment(recon_map, K, verbose=True):
 
     res = least_squares(fun, x0, jac_sparsity=A, verbose=0, x_scale='jac', method='trf')
     
-    # Update Map
     opt_cams = res.x[:n_opt_cams*6].reshape((n_opt_cams, 6))
     opt_pts = res.x[n_opt_cams*6:].reshape((n_points, 3))
     

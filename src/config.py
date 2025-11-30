@@ -1,9 +1,9 @@
-# Hardware specs for the camera (Assumed from project specs)
+# hardware specs for the camera (fetched from EXIF metadata)
 FOCAL_LENGTH_MM = 24.0
 SENSOR_WIDTH_MM = 36.0
 
-# Reconstruction settings
+# reconstruction settings
 RATIO_TEST_THRESH = 0.75
 REPROJ_ERROR_THRESH = 8.0
 CONFIDENCE = 0.99
-BA_INTERVAL = 5  # Run Bundle Adjustment every N frames
+BA_INTERVAL = 5  # running bundle adjustment after every 5 frames

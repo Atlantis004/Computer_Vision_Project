@@ -12,22 +12,14 @@ def main():
 
     if not os.path.exists(args.out): os.makedirs(args.out)
 
-    # 1. Load Data
     images, names = utils.load_images_from_dir(args.data)
-    if len(images) < 2:
-        print("Error: Need at least 2 images.")
-        return
 
-    # 2. Extract Features
     feat_cache = features.extract_features(images)
-    
-    # 3. Initialize Map
+
     h, w = images[0].shape[:2]
     K = geometry.get_intrinsic_matrix(w, h)
     recon = reconstruction.ReconstructionMap(names)
     
-    # Bootstrap (Frame 0 & 2)
-    print("--- Bootstrapping ---")
     idx1, idx2 = 0, min(2, len(images)-1)
     kp1, des1 = feat_cache[idx1]
     kp2, des2 = feat_cache[idx2]
@@ -43,13 +35,11 @@ def main():
     recon.add_camera(idx2, R, t, kp2, des2)
     geometry.triangulate_new_points(recon, idx1, idx2, K, images[idx1])
     
-    # 4. Incremental SfM
-    print("--- Incremental SfM ---")
     for next_idx in range(len(images)):
         if next_idx in recon.camera_poses: continue
         if next_idx not in feat_cache: continue
         
-        print(f"Registering Image {next_idx}...", end=" ")
+        print(f"Registering Image {next_idx}")
         kps, descs = feat_cache[next_idx]
         
         R, t, pnp_matches = geometry.solve_pnp(recon, next_idx, kps, descs, K)
@@ -68,14 +58,11 @@ def main():
         if len(recon.camera_poses) % config.BA_INTERVAL == 0:
             optimization.bundle_adjustment(recon, K)
 
-    # 5. Final Refinement & Export
     print("--- Finalizing ---")
     optimization.bundle_adjustment(recon, K)
     
-    # Save standard PLY
     utils.save_ply(os.path.join(args.out, "final_cloud.ply"), recon.points_3d, recon.point_colors)
     
-    # Save Web-Ready JSON
     utils.export_to_web_viewer(args.out, recon)
     print("Done.")
 

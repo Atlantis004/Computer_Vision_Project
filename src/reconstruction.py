@@ -2,7 +2,7 @@ import numpy as np
 
 class ReconstructionMap:
     def __init__(self, image_names):
-        self.image_names = image_names # List of filenames
+        self.image_names = image_names 
         self.points_3d = []           
         self.point_colors = []        
         self.camera_poses = {}        

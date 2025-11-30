@@ -11,8 +11,6 @@ def get_intrinsic_matrix(w, h):
     return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float64)
 
 def solve_pnp(recon_map, new_img_idx, kps, descs, K):
-    """Finds the pose of a new camera using the existing 3D map."""
-    # Match against the most recent camera for efficiency
     ref_cam_idx = max(recon_map.camera_poses.keys())
     ref_descs = recon_map.descriptors[ref_cam_idx]
     
@@ -20,7 +18,7 @@ def solve_pnp(recon_map, new_img_idx, kps, descs, K):
     
     object_points = []
     image_points = []
-    valid_matches = [] # (queryIdx, pt3d_idx)
+    valid_matches = []
     
     for m in matches:
         if m.trainIdx in recon_map.point_correspondences[ref_cam_idx]:
@@ -45,7 +43,6 @@ def solve_pnp(recon_map, new_img_idx, kps, descs, K):
     return R, tvec, pnp_matches
 
 def triangulate_new_points(recon_map, img1_idx, img2_idx, K, img1_color_ref):
-    """Triangulates points between two views and adds them to the map."""
     R1, t1 = recon_map.camera_poses[img1_idx]
     R2, t2 = recon_map.camera_poses[img2_idx]
     kp1, kp2 = recon_map.keypoints[img1_idx], recon_map.keypoints[img2_idx]
@@ -57,7 +54,6 @@ def triangulate_new_points(recon_map, img1_idx, img2_idx, K, img1_color_ref):
     
     pts1, pts2, match_objs = [], [], []
     for m in matches:
-        # Only triangulate if point doesn't exist yet
         if (m.queryIdx not in recon_map.point_correspondences[img1_idx] and 
             m.trainIdx not in recon_map.point_correspondences[img2_idx]):
             pts1.append(kp1[m.queryIdx].pt)
