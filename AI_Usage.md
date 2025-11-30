@@ -32,3 +32,29 @@ Generated code to extract RGB color values from the source images corresponding 
 
 1.  **PLY Format:** Generated the function to write the 3D points and colors into a `.ply` file format, including the correct header structure (`element vertex`, `property float x`, etc.) because the `.ply` file header requires a strict format to be readable by software like CloudCompare
 2.  **Visualization:** Generated code snippets to visualize the resulting point cloud
+
+---
+
+## Week 3: Multi-View Reconstruction & Refinement
+
+### 1. Reconstruction Data Structure
+
+Used AI to design the structure of the ReconstructionMap class. This helper class was needed to modularize the data management, keeping track of growing lists of 3D points, camera poses, and the complex associations (correspondences) between 2D image keypoints and 3D map points.
+
+### 2. Bundle Adjustment Implementation
+
+Utilized AI to generate the boilerplate code for the `scipy.optimize.least_squares` implementation. Specifically, AI assisted in constructing the residual function (calculating the difference between projected 3D points and observed 2D points) and setting up the Jacobian sparsity matrix. This was crucial for optimizing memory usage and runtime when refining thousands of points.
+
+### 3. PnP (Perspective-n-Point) Logic
+
+Generated the `solve_pnp` function logic to bridge the feature matching and pose estimation steps. AI provided the workflow for:
+
+1. Identifying matches between descriptors in a new image and descriptors already associated with 3D points
+
+2. Formatting these 2D-3D correspondences correctly for input into `cv2.solvePnPRansac`
+
+3. Filtering the matches based on the resulting RANSAC inliers
+
+### 4. JSON Export & Coordinate Transformation
+
+Generated the `export_final_fixed` function to handle the data export for the Week 4 web viewer. We consulted AI to correctly implement the coordinate system transformation matrix needed to convert our OpenCV-based reconstruction (Y-down, Z-forward) into a WebGL/Three.js compatible format (Y-up, Z-backward), and to serialize the camera matrices into the required JSON structure.
