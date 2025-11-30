@@ -10,12 +10,19 @@ The project follows the official CS436 specification.
 ```
 project-root/
 │
-├── src/                # Modular .py codebase (feature detection, matching, SfM, utils)
-├── notebooks/          # Weekly result reports (Week 1, Week 2, …)
-├── data/               # Original + processed images
-├── results/            # Match visualizations, point clouds, intermediate outputs
-├── docs/               # Extra documentation (optional)
+├── src/                  # modular .py codebase
+│   ├── config.py         # constants and settings
+│   ├── features.py       # SIFT extraction and matching
+│   ├── geometry.py       # PnP, Triangulation, Intrinsics
+│   ├── optimization.py   # bundle adjustment
+│   ├── reconstruction.py # data structures
+│   └── utils.py          # I/O and export tools
 │
+├── notebooks/          # weekly result reports (Jupyter Notebooks)
+├── data/               # input images
+├── results/            # point clouds, JSON exports, Visualizations
+├── run_pipeline.py     # main CLI entry point
+├── requirements.txt    # python dependencies
 └── README.md
 ```
 
