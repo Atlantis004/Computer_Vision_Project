@@ -1,20 +1,27 @@
 # 3D Scene Reconstruction and Virtual Tour — CS436 Project
 
-This repository implements a modular **Structure-from-Motion (SfM)** pipeline inspired by **Matterport** and **Microsoft Photosynth**.
-The goal is to reconstruct a 3D scene and camera trajectory from a sequence of 2D images, culminating in an interactive web-based virtual tour.
+This repository contains our implementation of a modular Structure-from-Motion (SfM) pipeline as per the course CS436 - Computer Vision. The goal is to reconstruct a 3D scene and camera trajectory from a sequence of 2D images, resulting in an interactive web-based virtual tour. 
 
-The work follows the official CS436 project specification and milestones.
+Currently we have reconstructed the point cloud (viewed in CloudCompare):
+
+![](results/ply_result.mp4)
+
+![](results/result_img.png)
+
+The next step is to create the web-based virtual tour
 
 ## Repository Structure
 
 ```text
-project-root/
+root/
 │
-├── src/                # Modular Python codebase (SfM core modules)
-├── notebooks/          # Weekly result notebooks (Week 1–3)
-├── data/               # Source images / video frames
-├── results/            # Visual outputs and point clouds
-├── docs/               # Report
+├── src/                # modular Python files
+├── notebooks/          # weekly result notebooks (Week 1–3 for now)
+├── data/               # source images
+├── results/            # visual outputs and point clouds
+├── docs/               # report
+├── run_pipeline.py     # main .py file to run the entire PnP pipeline
+├── AI_Usage.md         # report containing the use of AI to assist with the project code
 │
 └── README.md
 ```
@@ -27,22 +34,21 @@ source venv/bin/activate        # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-**Key Libraries**
+**Libraries Used**
 
 * OpenCV
 * NumPy
 * SciPy
 * Matplotlib
-* Open3D (for point-cloud visualization)
+* Open3D
 
 ## Dataset and Preprocessing
 
 As per project guidelines:
 
-* Capture static, textured scenes with **60–80% overlap** between views.
-* Ensure consistent lighting and physical translation (not just rotation).
-* Downscale 4K frames (3840×2160) to 1080×1920 for efficiency.
-* Intrinsic parameters are estimated from EXIF focal length and sensor size.
+* We captured static, textured scenes (brick walls) with ~60% overlap between each frame.
+* We ensured consistent lighting and physical translation (avoiding rotation).
+* Intrinsic parameters were calculated from EXIF metadata.
 
 All input data are stored in `data/` and all results in `results/`.
 
