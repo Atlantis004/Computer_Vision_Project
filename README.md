@@ -201,5 +201,3 @@ Outputs are stored in:
 
 * `results/week1/`
 * `results/week2/`
-
-
