@@ -4,7 +4,7 @@ This repository contains our implementation of a modular Structure-from-Motion (
 
 Currently we have reconstructed the point cloud (viewed in CloudCompare):
 
-![video](results/ply_result.mp4)
+![](results/ply_vid.mp4)
 
 ---
 
