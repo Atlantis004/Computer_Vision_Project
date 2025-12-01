@@ -1,205 +1,247 @@
-# **3D Scene Reconstruction & Virtual Tour — CS436 Project**
+# 3D Scene Reconstruction and Virtual Tour — CS436 Project
 
-A modular, production-quality implementation of the Structure-from-Motion (SfM) pipeline, inspired by systems like **Matterport** and **Photosynth**.
-This repository contains weekly deliverables for building a full 3D reconstruction + interactive virtual tour system from a sequence of photographs.
+This repository implements a modular **Structure-from-Motion (SfM)** pipeline inspired by **Matterport** and **Microsoft Photosynth**.
+The goal is to reconstruct a 3D scene and camera trajectory from a sequence of 2D images, culminating in an interactive web-based virtual tour.
 
-The project follows the official CS436 specification.
+The work follows the official CS436 project specification and milestones.
 
-# 📁 **Repository Structure**
+## Repository Structure
 
-```
+```text
 project-root/
 │
-├── src/                  # modular .py codebase
-│   ├── config.py         # constants and settings
-│   ├── features.py       # SIFT extraction and matching
-│   ├── geometry.py       # PnP, Triangulation, Intrinsics
-│   ├── optimization.py   # bundle adjustment
-│   ├── reconstruction.py # data structures
-│   └── utils.py          # I/O and export tools
+├── src/                # Modular Python codebase (SfM core modules)
+├── notebooks/          # Weekly result notebooks (Week 1–3)
+├── data/               # Source images / video frames
+├── results/            # Visual outputs and point clouds
+├── docs/               # Reports, PDFs, diagrams
 │
-├── notebooks/          # weekly result reports (Jupyter Notebooks)
-├── data/               # input images
-├── results/            # point clouds, JSON exports, Visualizations
-├── run_pipeline.py     # main CLI entry point
-├── requirements.txt    # python dependencies
 └── README.md
 ```
 
-# ⚙️ **Environment Setup**
+## Environment Setup
 
 ```bash
-# Create environment
 python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-
-# Install dependencies
+source venv/bin/activate        # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-**Core Libraries Used**
+**Key Libraries**
 
-* OpenCV (cv2)
+* OpenCV
 * NumPy
-* Open3D
+* SciPy
 * Matplotlib
-* tqdm (optional)
+* Open3D (for point-cloud visualization)
 
-# 📸 **Dataset Requirements**
+## Dataset and Preprocessing
 
-As recommended in the project specification:
+As per project guidelines:
 
-* Scene must be static & textured
-* Camera must translate, not rotate in place
-* 60–80% overlap between images
-* Use 1080p or downscaled images for performance
-* Sharp, well-lit images
+* Capture static, textured scenes with **60–80% overlap** between views.
+* Ensure consistent lighting and physical translation (not just rotation).
+* Downscale 4K frames (3840×2160) to 1080×1920 for efficiency.
+* Intrinsic parameters are estimated from EXIF focal length and sensor size.
 
-All datasets are stored in `data/`.
+All input data are stored in `data/` and all results in `results/`.
 
-# 🚀 **Week 1 — Setup & Feature Matching**
+## Week 1 — Feature Extraction and Matching
 
-## **Objective**
+**Goal:** Implement a feature-matching foundation for the SfM pipeline.
 
-Implement the initial feature-matching pipeline that forms the backbone of the SfM reconstruction.
+**Key Steps**
 
-## **1. Image Preprocessing**
+1. **Preprocessing**
 
-The raw dataset contained **4K images (2160×3840)**.
-We rescaled all images to **1080×1920** before processing.
+   * Downsample 4K images to 1080×1920 to reduce computation time and memory usage.
 
-**Reasons for Downscaling:**
+2. **Feature Detection (SIFT)**
 
-* SIFT extracts thousands of keypoints, making 4K processing slow
-* BFMatcher computation is quadratic in descriptor count
-* Downsampling reduces runtime and memory by 3–4×
-* Downscaled images still preserve key geometric structure
+   * Use **SIFT** to compute scale- and rotation-invariant keypoints and 128-dimensional descriptors for each image.
 
-## **2. Feature Detection (SIFT)**
+3. **Feature Matching**
 
-For each consecutive image pair:
+   * Use a Brute-Force matcher with `k=2` nearest neighbors.
+   * Apply **Lowe’s Ratio Test** (threshold = 0.75) to reject ambiguous or noisy matches.
 
-* Detect SIFT keypoints
-* Compute 128-dim descriptors
-* Store per-image features
+4. **Visualization**
 
-SIFT is chosen for:
+   * Sort matches by descriptor distance.
+   * Display and save the top 100 filtered matches per consecutive image pair.
 
-* Scale invariance
-* Rotation invariance
-* Robustness in indoor natural scenes
-* Strong performance for epipolar geometry tasks
+**Output**
 
-## **3. Feature Matching (BFMatcher + Lowe’s Ratio Test)**
+* Filtered SIFT matches between 5 consecutive image pairs.
+* Top-100 match visualizations saved in `results/week1/`.
 
-Using:
+## Week 2 — Two-View Reconstruction
 
-* **Brute-Force Matcher**
-* **k-NN matching** (k=2)
-* **Lowe’s Ratio Test (0.75)**
+**Goal:** Recover 3D structure and relative camera pose from a pair of images.
 
-This eliminates ambiguous and high-error correspondences.
+**Steps**
 
-## **4. Visualization of Matches**
+1. **Essential Matrix Estimation**
 
-For each consecutive pair:
+   * Use `cv2.findEssentialMat()` with RANSAC on normalized point correspondences.
 
-* Sort by descriptor distance
-* Select the **top 100** filtered matches
-* Display image with match lines
-* Save to `results/week1/`
+2. **Pose Recovery**
 
-These matches are used in Week 2 for Essential Matrix estimation.
+   * Decompose the Essential Matrix into rotation and translation using `cv2.recoverPose()`.
 
-## **Week 1 Output Summary**
+3. **Cheirality Check**
 
-* Downsampled dataset
-* SIFT keypoints + descriptors
-* Raw + filtered matches
-* Top-100 match visualizations
-* Pipeline implemented in `src/feature_matching.py`
+   * Select the physically valid pose where most triangulated points lie in front of both cameras (positive depth in both views).
 
-# 🚀 **Week 2 — Two-View Reconstruction**
+4. **Triangulation**
 
-## **Objective**
+   * Use `cv2.triangulatePoints()` to recover 3D points from the inlier correspondences.
+   * Convert homogeneous coordinates to Euclidean coordinates.
 
-Build the two-view SfM foundation:
+5. **Export**
 
-* Compute Essential Matrix
-* Recover relative pose
-* Triangulate sparse 3D structure
+   * Save the resulting sparse 3D point cloud in `.ply` format for visualization in Open3D or other viewers.
 
-This corresponds to **Phase 1** of the specification.
+**Output**
 
-## **1. Camera Intrinsics (K Matrix)**
+* Sparse two-view reconstruction stored at `results/week2/point_cloud.ply`.
+* Valid [R | t] relative pose between the two cameras.
 
-Approximation used:
+## Week 3 — Incremental Multi-View SfM and Bundle Adjustment
 
-* Center of image = principal point
-* fx = fy = image width
-* Zero skew
+**Goal:** Extend the two-view reconstruction to a full image sequence using **PnP** and **Bundle Adjustment**.
 
-K is constructed using the resized image (1080×1920).
+### 1. Feature Extraction
 
-## **2. Essential Matrix Estimation**
+* Extract up to **40,000 SIFT features per frame** for 30 frames.
+* Compute camera intrinsics matrix **K** from EXIF metadata (focal length and sensor width).
 
-Using OpenCV:
+### 2. Map Initialization
 
-```python
-E, mask = cv2.findEssentialMat(pts1, pts2, K, method=cv2.RANSAC, threshold=1.0)
-```
+* Select two baseline frames (e.g., Frame 0 and Frame 2) with sufficient parallax.
+* Match SIFT descriptors between the two frames.
+* Estimate the Essential Matrix and recover relative pose [R | t].
+* Triangulate initial 3D points and perform a cheirality check.
+* Initialize the reconstruction map with:
 
-## **3. Pose Recovery & Cheirality Check**
+  * First camera at the origin (R = I, t = 0).
+  * Second camera at the recovered pose.
+  * Approximately 1,468 initial 3D points, each with RGB color sampled from the image.
 
-`cv2.recoverPose()` outputs 4 possible poses.
-We disambiguate by:
+### 3. Incremental Reconstruction with PnP
 
-* Triangulating for each pose
-* Counting points with positive depth in both frames
-* Selecting the pose with the maximum valid 3D points
+For each remaining frame in the sequence:
 
-## **4. 3D Point Cloud Generation**
+* Match its descriptors to descriptors in the most recently added camera.
+* For matches where the reference keypoint is already associated with a 3D point:
 
-Once the correct pose is selected:
+  * Build 2D–3D correspondences (image points ↔ existing 3D points).
+* Use `cv2.solvePnPRansac()` to estimate the new camera pose:
 
-* Triangulate inlier correspondences
-* Convert to Euclidean 3D points
-* Remove invalid/outlier points
-* Save output as `.ply`
-* Visualize via Open3D
+  * Robustly fit the pose under outliers using RANSAC.
+* Add the new camera pose (R, t) to the reconstruction map.
+* Register PnP inlier matches as additional 2D–3D associations for that frame.
+* Triangulate new 3D points between:
 
-Stored in `results/week2/point_cloud.ply`.
+  * The newly registered camera, and
+  * A previous camera (often the latest previous in the map).
+* Only keep triangulated points that:
 
-## **Week 2 Output Summary**
+  * Are in front of both cameras (positive depth), and
+  * Have valid image coordinates for color sampling.
 
-* Filtered inlier correspondences
-* Essential matrix
-* Valid camera pose [R|t]
-* Sparse 3D point cloud
-* Pipeline implemented in `src/two_view_reconstruction.py`
+This progressively grows both the 3D point cloud and the set of registered camera poses.
 
-# ▶️ **How to Run**
+### 4. Bundle Adjustment
 
-## **Feature Matching (Week 1)**
+* After every 5 newly registered frames, run **Bundle Adjustment** using `scipy.optimize.least_squares()`.
+* Optimize over:
+
+  * Camera parameters (rotation in Rodrigues form + translation) for all but the first camera (which is fixed as reference).
+  * All 3D point positions.
+* Use a **sparse Jacobian** structure (`lil_matrix`) to speed up optimization:
+
+  * Each residual depends only on one camera and one 3D point.
+* The cost function minimizes total **reprojection error** between observed 2D points and the projections of the optimized 3D points.
+
+After all frames are processed, a final global bundle adjustment is run on the entire map.
+
+### 5. Output and Visualization
+
+* Save the final dense point cloud to `final_model.ply`.
+* Filter outliers by removing points lying more than two standard deviations from the mean in any dimension.
+* Visualize the cleaned point cloud using Matplotlib’s 3D scatter plot:
+
+  * Coordinates are rearranged for a more intuitive view (e.g., using X, Z, -Y).
+* Export camera poses and point cloud for Three.js:
+
+  * Convert from OpenCV’s coordinate conventions to Three.js conventions (Y-up, Z-backward).
+  * Save:
+
+    * A `.ply` file with aligned points.
+    * A `project_data.json` containing:
+
+      * Per-camera 4×4 transformation matrices (column-major, as used in Three.js).
+      * Image filenames.
+      * Reference to the point cloud file.
+
+**Final Statistics (approximate)**
+
+* Around 27 registered camera poses.
+* Around 136,000 3D points after incremental reconstruction and refinement.
+* Multiple Bundle Adjustment stages with decreasing reprojection cost.
+
+**Main Output Files**
+
+* `results/week3/final_model.ply` — final filtered point cloud.
+* `results/week3/project_data.json` — camera trajectories and point-cloud metadata for Three.js.
+
+## How to Run
+
+**Feature Matching (Week 1)**
 
 ```bash
 python src/run_week1.py --input_dir data/
 ```
 
-## **Two-View Reconstruction (Week 2)**
+**Two-View Reconstruction (Week 2)**
 
 ```bash
-python src/run_week2.py \
-    --img1 data/img_000.jpg \
-    --img2 data/img_001.jpg \
-    --output results/week2/
+python src/run_week2.py --img1 data/img_000.jpg --img2 data/img_001.jpg
 ```
 
-# 🧪 **Results**
+**Incremental SfM (Week 3)**
 
-Outputs are stored in:
+```bash
+python src/run_week3.py --input_dir data/extracted_frames/
+```
+
+## Results
+
+All visualizations and 3D outputs are stored under:
 
 * `results/week1/`
 * `results/week2/`
+* `results/week3/`
 
+These include feature match images, intermediate reconstructions, and final point clouds.
 
+## Project Practices
+
+* Modular, object-oriented Python code (SfM components separated into clear modules).
+* Notebooks are used only for visualization and reporting; core logic lives in `.py` files.
+* Reproducible scripts with fixed I/O conventions.
+* Outputs are compatible with both Open3D and web visualization tools like Three.js.
+
+## Team
+
+* Muhammad Hussain Habib (27100016)
+* Ayaan Ahmed (27100155)
+
+## Future Milestones (Planned)
+
+**Week 4 — Interactive Three.js Viewer**
+Implement a Photosynth-style web viewer with smooth interpolation between camera poses and point-cloud rendering.
+
+**Week 5 — Final Integration and Report**
+Integrate the full pipeline, prepare a final written report, and record a short demonstration video.
