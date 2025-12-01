@@ -14,7 +14,7 @@ project-root/
 ├── notebooks/          # Weekly result notebooks (Week 1–3)
 ├── data/               # Source images / video frames
 ├── results/            # Visual outputs and point clouds
-├── docs/               # Reports, PDFs, diagrams
+├── docs/               # Report
 │
 └── README.md
 ```
@@ -196,35 +196,11 @@ After all frames are processed, a final global bundle adjustment is run on the e
 * `results/week3/final_model.ply` — final filtered point cloud.
 * `results/week3/project_data.json` — camera trajectories and point-cloud metadata for Three.js.
 
-## How to Run
-
-**Feature Matching (Week 1)**
-
-```bash
-python src/run_week1.py --input_dir data/
-```
-
-**Two-View Reconstruction (Week 2)**
-
-```bash
-python src/run_week2.py --img1 data/img_000.jpg --img2 data/img_001.jpg
-```
-
-**Incremental SfM (Week 3)**
-
-```bash
-python src/run_week3.py --input_dir data/extracted_frames/
-```
-
 ## Results
 
 All visualizations and 3D outputs are stored under:
 
-* `results/week1/`
-* `results/week2/`
-* `results/week3/`
-
-These include feature match images, intermediate reconstructions, and final point clouds.
+* `results/`
 
 ## Project Practices
 
@@ -242,6 +218,3 @@ These include feature match images, intermediate reconstructions, and final poin
 
 **Week 4 — Interactive Three.js Viewer**
 Implement a Photosynth-style web viewer with smooth interpolation between camera poses and point-cloud rendering.
-
-**Week 5 — Final Integration and Report**
-Integrate the full pipeline, prepare a final written report, and record a short demonstration video.
