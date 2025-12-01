@@ -4,9 +4,11 @@ This repository contains our implementation of a modular Structure-from-Motion (
 
 Currently we have reconstructed the point cloud (viewed in CloudCompare):
 
-![](results/ply_result.mp4)
+![video](results/ply_result.mp4)
 
-![](results/result_img.png)
+---
+
+![image](results/result_img.png)
 
 The next step is to create the web-based virtual tour
 
@@ -120,7 +122,7 @@ All input data are stored in `data/` and all results in `results/`.
 ### 1. Feature Extraction
 
 * Extract up to **40,000 SIFT features per frame** for 30 frames.
-* Compute camera intrinsics matrix **K** from EXIF metadata (focal length and sensor width).
+* Compute camera intrinsics matrix **K** from EXIF metadata.
 
 ### 2. Map Initialization
 
@@ -132,7 +134,7 @@ All input data are stored in `data/` and all results in `results/`.
 
   * First camera at the origin (R = I, t = 0).
   * Second camera at the recovered pose.
-  * Approximately 1,468 initial 3D points, each with RGB color sampled from the image.
+  * Approximately 2,527 initial 3D points.
 
 ### 3. Incremental Reconstruction with PnP
 
@@ -172,13 +174,12 @@ This progressively grows both the 3D point cloud and the set of registered camer
 
 After all frames are processed, a final global bundle adjustment is run on the entire map.
 
-### 5. Output and Visualization
+### 5. Output and Visualization and Preparing for Three.js Tour
 
 * Save the final dense point cloud to `final_model.ply`.
 * Filter outliers by removing points lying more than two standard deviations from the mean in any dimension.
 * Visualize the cleaned point cloud using Matplotlib’s 3D scatter plot:
 
-  * Coordinates are rearranged for a more intuitive view (e.g., using X, Z, -Y).
 * Export camera poses and point cloud for Three.js:
 
   * Convert from OpenCV’s coordinate conventions to Three.js conventions (Y-up, Z-backward).
@@ -199,8 +200,8 @@ After all frames are processed, a final global bundle adjustment is run on the e
 
 **Main Output Files**
 
-* `results/week3/final_model.ply` — final filtered point cloud.
-* `results/week3/project_data.json` — camera trajectories and point-cloud metadata for Three.js.
+* `results/week3/final_model.ply` —> final filtered point cloud.
+* `results/week3/project_data.json` —> camera trajectories and point-cloud metadata for Three.js.
 
 ## Results
 
@@ -208,19 +209,7 @@ All visualizations and 3D outputs are stored under:
 
 * `results/`
 
-## Project Practices
-
-* Modular, object-oriented Python code (SfM components separated into clear modules).
-* Notebooks are used only for visualization and reporting; core logic lives in `.py` files.
-* Reproducible scripts with fixed I/O conventions.
-* Outputs are compatible with both Open3D and web visualization tools like Three.js.
-
 ## Team
 
 * Muhammad Hussain Habib (27100016)
 * Ayaan Ahmed (27100155)
-
-## Future Milestones (Planned)
-
-**Week 4 — Interactive Three.js Viewer**
-Implement a Photosynth-style web viewer with smooth interpolation between camera poses and point-cloud rendering.
