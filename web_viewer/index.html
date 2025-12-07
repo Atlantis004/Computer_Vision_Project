@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CS436: Virtual Tour (Final)</title>
+    <style>
+        /* reset default body margins, hide scrollbars, set dark background and default font */
+        body { margin: 0; overflow: hidden; background: #222; font-family: sans-serif; }
+        
+        /* info panel styling - positioned top-left with semi-transparent dark background */
+        #info { 
+            position: absolute; top: 10px; left: 10px; z-index: 10;
+            color: white; background: rgba(0,0,0,0.7); 
+            padding: 10px; border-radius: 4px; pointer-events: none; /* prevents info box from blocking clicks */
+            line-height: 1.5;
+        }
+
+        /* overlay image for displaying camera photos - covers entire viewport */
+        #overlay {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover; /* ensures image covers entire area while maintaining aspect ratio */
+            opacity: 0;        /* initially hidden, fades in when photo mode is active */
+            transition: opacity 0.5s ease-in-out; /* smooth fade transition */
+            pointer-events: none !important; /* allows clicks to pass through to 3D scene */
+            z-index: 5;
+        }
+    </style>
+    <!-- import map defines module paths for Three.js and its addons from CDN -->
+    <script type="importmap">
+        { "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }}
+    </script>
+</head>
+<body>
+    <!-- instructions panel showing user controls -->
+    <div id="info">
+        <b>Week 4: Virtual Tour</b><br>
+        1. <b>Arrows / WASD</b>: Walk around.<br>
+        2. <b>Double Click</b> ground: Teleport.<br>
+        3. <b>Single Click</b> Cones: View Photos.<br>
+        4. <b>'H' Key</b>: Toggle Overview Mode.<br>
+        5. Drag to look.
+    </div>
+
+    <!-- hidden overlay image element - source set dynamically when viewing camera photos -->
+    <img id="overlay" src="" alt="Camera View">
+
+    <script type="module">
+        // import Three.js core library and required modules
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // camera orbit controls for mouse interaction
+        import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'; // loader for PLY point cloud files
+        import TWEEN from 'three/addons/libs/tween.module.js'; // animation tweening library for smooth transitions
+
+        // 1. SETUP SCENE
+        // create the main 3D scene container
+        const scene = new THREE.Scene();
+        // create perspective camera with 60 degree FOV, viewport aspect ratio, and near/far clipping planes
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 10000);
+        camera.position.set(0, 2, 5); // initial camera position
+
+        // create WebGL renderer with antialiasing for smoother edges
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement); // add canvas to DOM
+        
+        // set up orbit controls for mouse-based camera rotation
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // adds inertia to camera movement
+        controls.dampingFactor = 0.05; // controls how quickly damping slows down
+        controls.enableZoom = false; // disable zoom in walking mode (enabled in overview)
+
+        // get reference to overlay image element for photo display
+        const overlayImg = document.getElementById('overlay');
+        
+        // when user starts dragging the view, fade the overlay to allow seeing the 3D scene
+        controls.addEventListener('start', () => {
+            if(overlayImg.style.opacity > 0) {
+                overlayImg.style.opacity = 0.3; // partially fade overlay when user rotates view
+            }
+        });
+
+        // 2. DATA & STATE
+        // raycaster for detecting mouse interactions with 3D objects
+        const raycaster = new THREE.Raycaster();
+        raycaster.params.Points.threshold = 0.2; // sensitivity for point cloud intersection detection
+        
+        // mouse position in normalized device coordinates (-1 to +1)
+        const mouse = new THREE.Vector2();
+        let waypoints = []; // array to store all camera waypoint cone meshes
+        let floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // horizontal plane for teleportation
+        let modelCenter = new THREE.Vector3(0, 0, 0); // center of the point cloud model
+        let isOverview = false; // tracks whether camera is in bird's eye overview mode
+
+        // keyboard state tracking for WASD/arrow key movement
+        const keyState = {
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+            w: false, a: false, s: false, d: false
+        };
+        const walkSpeed = 0.15; // movement speed for keyboard walking
+
+        // main initialization function - loads data and sets up scene
+        async function init() {
+            try {
+                console.log("Loading JSON...");
+                // fetch camera and point cloud data from JSON file
+                const response = await fetch('project_data.json');
+                const data = await response.json();
+
+                // a. load point cloud from PLY file
+                new PLYLoader().load(data.point_cloud_file, (geometry) => {
+                    // create point material with vertex colors from the PLY file
+                    const material = new THREE.PointsMaterial({ size: 0.15, vertexColors: true });
+                    const points = new THREE.Points(geometry, material);
+                    points.name = "pointcloud"; // name for later identification in raycasting
+                    scene.add(points);
+
+                    // calculate bounding sphere to find model center for overview positioning
+                    geometry.computeBoundingSphere();
+                    modelCenter.copy(geometry.boundingSphere.center);
+                    resetToOverview(); // start in overview mode
+                });
+
+                // b. create directional waypoints (cones) for each camera position
+                // cone geometry pointing forward (along -Z axis after rotation)
+                const coneGeo = new THREE.ConeGeometry(0.3, 0.8, 16);
+                coneGeo.rotateX(-Math.PI / 2); // rotate cone to point forward instead of up
+
+                // semi-transparent yellow material for waypoint cones
+                const waypointMat = new THREE.MeshBasicMaterial({ 
+                    color: 0xffff00, 
+                    transparent: true, 
+                    opacity: 0.6,
+                    side: THREE.DoubleSide,
+                    depthTest: false // always visible even behind other objects
+                });
+
+                let totalY = 0; // accumulator for calculating average floor height
+
+                // iterate through each camera and create corresponding waypoint cone
+                data.cameras.forEach(cam => {
+                    // parse 4x4 transformation matrix from camera data
+                    const matrix = new THREE.Matrix4();
+                    matrix.fromArray(cam.matrix);
+                    
+                    // decompose matrix into position, rotation, and scale components
+                    const position = new THREE.Vector3();
+                    const quaternion = new THREE.Quaternion();
+                    const scale = new THREE.Vector3();
+                    matrix.decompose(position, quaternion, scale);
+
+                    // --- ROTATION FIX LOGIC ---
+                    
+                    // 1. extract frame number from filename (e.g., "frame_273.jpg" -> 273)
+                    // used to apply different rotation corrections for different video segments
+                    const match = cam.filename.match(/(\d+)/);
+                    const frameNum = match ? parseInt(match[0]) : 0;
+
+                    // 2. base conversion quaternion - flip 180 degrees around X axis
+                    // converts from camera coordinate system to Three.js world coordinates
+                    const conversion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -Math.PI);
+                    
+                    // 3. conditional correction for specific frame ranges
+                    // some frames have different orientation due to camera rotation during recording
+                    let correctionAngle = 0;
+
+                    // frames 273-331 need additional rotation correction
+                    if (frameNum >= 273 && frameNum <= 331) {
+                        // apply -90 degree rotation to compensate for sideways camera orientation
+                        correctionAngle = -Math.PI / 2 - 0.5; 
+                    }
+
+                    // create correction quaternion for Y-axis rotation
+                    const correction = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), correctionAngle);
+
+                    // combine: original * conversion * conditional correction
+                    const fixedQuaternion = new THREE.Quaternion().copy(quaternion).premultiply(conversion).multiply(correction);
+                    // ---------------------------
+
+                    // create cone mesh for this waypoint
+                    const waypoint = new THREE.Mesh(coneGeo, waypointMat.clone());
+                    waypoint.position.copy(position);
+                    waypoint.position.y -= 1.5; // lower cone to appear at ground level
+                    
+                    totalY += position.y; // accumulate Y for floor calculation
+
+                    waypoint.quaternion.copy(fixedQuaternion);
+                    waypoint.name = "waypoint"; // name for identification in raycasting
+                    
+                    // store camera data in userData for later retrieval when clicked
+                    waypoint.userData = { 
+                        id: cam.id, 
+                        img: cam.filename,
+                        realPos: position, // actual camera position for photo mode
+                        realRot: fixedQuaternion // corrected rotation for photo mode
+                    };
+
+                    scene.add(waypoint);
+                    waypoints.push(waypoint);
+                });
+
+                // calculate floor plane height from average camera Y position
+                const avgY = totalY / data.cameras.length;
+                const floorY = avgY - 1.6; // offset for typical human eye height
+                floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -floorY);
+
+            } catch (err) {
+                console.error("Error loading project:", err);
+            }
+        }
+        init(); // start initialization
+
+        // 3. EVENT LISTENERS
+        // register mouse and keyboard event handlers
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('click', onSingleClick);
+        window.addEventListener('dblclick', onDoubleClick);
+        
+        // keyboard event handlers for walking controls and overview toggle
+        window.addEventListener('keydown', (e) => {
+            // 'H' key toggles between overview and walking mode
+            if (e.key === 'h' || e.key === 'H') {
+                toggleOverview();
+            }
+            // track key press state for continuous movement
+            if (keyState.hasOwnProperty(e.key)) keyState[e.key] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            // track key release to stop movement
+            if (keyState.hasOwnProperty(e.key)) keyState[e.key] = false;
+        });
+
+        let hoveredObj = null; // currently hovered waypoint for highlighting
+
+        // handles mouse movement for waypoint hover effects
+        function onMouseMove(e) {
+            // convert mouse position to normalized device coordinates (-1 to +1)
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ( ( e.clientX - rect.left ) / rect.width ) * 2 - 1;
+            mouse.y = - ( ( e.clientY - rect.top ) / rect.height ) * 2 + 1;
+
+            // cast ray from camera through mouse position
+            raycaster.setFromCamera(mouse, camera);
+            
+            // check for intersections with waypoint cones
+            const hits = raycaster.intersectObjects(waypoints);
+
+            if (hits.length > 0) {
+                const hitObj = hits[0].object;
+                // if hovering over a new waypoint
+                if (hoveredObj !== hitObj) {
+                    // reset previous hovered waypoint to default state
+                    if (hoveredObj) {
+                        hoveredObj.material.color.setHex(0xffff00); // restore yellow color
+                        hoveredObj.scale.set(1, 1, 1);
+                    }
+                    // highlight new hovered waypoint
+                    hoveredObj = hitObj;
+                    hoveredObj.material.color.setHex(0xff0000); // change to red
+                    hoveredObj.scale.set(1.3, 1.3, 1.3); // enlarge slightly
+                    document.body.style.cursor = 'pointer';
+                }
+            } else {
+                // no waypoint under mouse - reset any highlighted waypoint
+                if (hoveredObj) {
+                    hoveredObj.material.color.setHex(0xffff00); // restore yellow color
+                    hoveredObj.scale.set(1, 1, 1);
+                    hoveredObj = null;
+                    document.body.style.cursor = 'default';
+                }
+            }
+        }
+
+        // handles single click to enter photo mode when clicking on a waypoint
+        function onSingleClick(e) {
+            raycaster.setFromCamera(mouse, camera);
+            const waypointHits = raycaster.intersectObjects(waypoints);
+            if (waypointHits.length > 0) {
+                enterPhotoMode(waypointHits[0].object);
+            }
+        }
+
+        // handles double click for teleportation to clicked point
+        function onDoubleClick(e) {
+            raycaster.setFromCamera(mouse, camera);
+
+            // 1. first try to intersect with point cloud
+            const pointHits = raycaster.intersectObjects(scene.children.filter(o => o.name === 'pointcloud'));
+            if (pointHits.length > 0) {
+                walkToPoint(pointHits[0].point);
+                return;
+            }
+
+            // 2. if no point cloud hit, try invisible floor plane for teleportation
+            const floorIntersect = new THREE.Vector3();
+            const hitFloor = raycaster.ray.intersectPlane(floorPlane, floorIntersect);
+            if (hitFloor) {
+                walkToPoint(floorIntersect);
+            }
+        }
+
+        // processes keyboard input for WASD/arrow key movement each frame
+        function processKeyboard() {
+            // don't process movement if controls disabled or in overview mode
+            if (!controls.enabled || isOverview) return;
+
+            // calculate forward direction based on camera orientation (ignoring pitch)
+            const forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+            forward.y = 0; // flatten to horizontal plane
+            forward.normalize();
+
+            // calculate right direction perpendicular to forward
+            const right = new THREE.Vector3();
+            right.crossVectors(forward, camera.up).normalize();
+
+            // build movement direction from pressed keys
+            const moveDir = new THREE.Vector3(0, 0, 0);
+
+            if (keyState.ArrowUp || keyState.w) moveDir.add(forward);
+            if (keyState.ArrowDown || keyState.s) moveDir.sub(forward);
+            if (keyState.ArrowRight || keyState.d) moveDir.add(right);
+            if (keyState.ArrowLeft || keyState.a) moveDir.sub(right);
+
+            // apply movement if any direction keys are pressed
+            if (moveDir.lengthSq() > 0) {
+                moveDir.normalize().multiplyScalar(walkSpeed);
+                camera.position.add(moveDir);
+                controls.target.add(moveDir); // move orbit target with camera
+                // hide photo overlay when walking
+                if (overlayImg.style.opacity > 0) overlayImg.style.opacity = 0;
+            }
+        }
+
+        // toggles between bird's eye overview mode and walking mode
+        function toggleOverview() {
+            if (isOverview) {
+                // exit overview - return to ground level at current horizontal position
+                const groundPos = new THREE.Vector3(camera.position.x, floorPlane.constant * -1 + 1.6, camera.position.z);
+                walkToPoint(groundPos); 
+            } else {
+                // enter overview mode
+                resetToOverview();
+            }
+        }
+
+        // animates camera to bird's eye overview position above the model
+        function resetToOverview() {
+            isOverview = true;
+            overlayImg.style.opacity = 0; // hide any photo overlay
+            controls.enableZoom = true; // allow zoom in overview mode
+            controls.enabled = false; // disable controls during animation
+
+            // animate camera position above and slightly behind model center
+            new TWEEN.Tween(camera.position)
+                .to({ x: modelCenter.x, y: modelCenter.y + 20, z: modelCenter.z + 20 }, 2000)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .start();
+
+            // animate orbit target to model center
+            new TWEEN.Tween(controls.target)
+                .to({ x: modelCenter.x, y: modelCenter.y, z: modelCenter.z }, 2000)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onComplete(() => {
+                    controls.enabled = true; // re-enable controls after animation
+                })
+                .start();
+        }
+
+        // animates camera to waypoint position and displays associated photo
+        function enterPhotoMode(waypointObj) {
+            isOverview = false;
+            overlayImg.style.opacity = 0; // hide overlay during transition
+            controls.enabled = false; // disable controls during animation
+            controls.enableZoom = false; // disable zoom in photo mode
+
+            // use exact camera position (no height offset for photos)
+            const targetPos = waypointObj.userData.realPos; 
+            const targetRot = waypointObj.userData.realRot;
+
+            // animate camera position to waypoint
+            new TWEEN.Tween(camera.position)
+                .to({ x: targetPos.x, y: targetPos.y, z: targetPos.z }, 1500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .start();
+
+            // animate camera rotation to match waypoint orientation
+            new TWEEN.Tween(camera.quaternion)
+                .to({ x: targetRot.x, y: targetRot.y, z: targetRot.z, w: targetRot.w }, 1500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onComplete(() => {
+                    // after animation, set orbit target in front of camera
+                    const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    const orbitTarget = new THREE.Vector3().copy(camera.position).add(lookDir);
+                    controls.target.copy(orbitTarget);
+                    controls.enabled = true;
+
+                    // display the photo associated with this waypoint
+                    overlayImg.src = "../data/" + waypointObj.userData.img;
+                    overlayImg.style.opacity = 0.9;
+                })
+                .start();
+        }
+
+        // animates camera to a target ground position for teleportation
+        function walkToPoint(targetVec3) {
+            isOverview = false;
+            overlayImg.style.opacity = 0; // hide any photo overlay
+            controls.enabled = false; // disable controls during animation
+            controls.enableZoom = false; // disable zoom in walking mode
+
+            // maintain human eye height above floor level
+            const eyeHeight = 8.3; 
+            const finalY = (typeof targetVec3.y !== 'undefined') ? targetVec3.y + eyeHeight : (floorPlane.constant * -1) + eyeHeight;
+
+            const endCamPos = { x: targetVec3.x, y: finalY, z: targetVec3.z };
+
+            // calculate orbit target offset to prevent camera spinning during movement
+            const offset = new THREE.Vector3().subVectors(controls.target, camera.position);
+            const endTargetPos = {
+                x: endCamPos.x + offset.x,
+                y: endCamPos.y + offset.y,
+                z: endCamPos.z + offset.z
+            };
+
+            // animate camera position
+            new TWEEN.Tween(camera.position)
+                .to(endCamPos, 1000)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
+
+            // animate orbit target to move with camera
+            new TWEEN.Tween(controls.target)
+                .to(endTargetPos, 1000)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .onComplete(() => {
+                    controls.enabled = true; // re-enable controls after animation
+                })
+                .start();
+        }
+
+        // main animation loop - runs every frame
+        function animate() {
+            requestAnimationFrame(animate);
+            processKeyboard(); // handle keyboard movement
+            controls.update(); // update orbit controls (applies damping)
+            TWEEN.update(); // update any active animations
+            renderer.render(scene, camera); // render the scene
+        }
+        animate(); // start animation loop
+        
+        // handle window resize to maintain correct aspect ratio
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

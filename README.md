@@ -18,6 +18,7 @@ root/
 ├── data/               # source images
 ├── results/            # visual outputs and point clouds
 ├── docs/               # report
+├── web_viewer          # interactive web viewer (final result)
 ├── run_pipeline.py     # main .py file to run the entire PnP pipeline
 ├── AI_Usage.md         # report containing the use of AI to assist with the project code
 │

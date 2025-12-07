@@ -58,3 +58,19 @@ Generated the `solve_pnp` function logic to bridge the feature matching and pose
 ### 4. JSON Export & Coordinate Transformation
 
 Generated the `export_final_fixed` function to handle the data export for the Week 4 web viewer. We consulted AI to correctly implement the coordinate system transformation matrix needed to convert our OpenCV-based reconstruction (Y-down, Z-forward) into a WebGL/Three.js compatible format (Y-up, Z-backward), and to serialize the camera matrices into the required JSON structure.
+
+---
+
+## Week 4: Interactive Web Viewer
+
+### 1. Three.js Integration & Scene Setup
+
+Utilized AI to scaffold the web viewer implementation using Three.js. While we understood the conceptual logic (loading the point cloud, positioning camera waypoints, and enabling user navigation) we used AI to translate these requirements into the correct Three.js API calls, including setting up the `PLYLoader`, `OrbitControls`, and `TWEEN` animation library for smooth camera transitions.
+
+### 2. Waypoint Visualization & Interaction
+
+AI assisted in implementing the interactive cone-based waypoints that represent camera positions. This included correctly decomposing the 4x4 transformation matrices to extract position and orientation, and setting up the raycasting logic to detect user clicks on waypoints for photo overlay display.
+
+### 3. Navigation Controls
+
+Generated the keyboard-based walking controls (WASD/Arrow keys) and double-click teleportation system. AI helped structure the `Plane.intersectLine` logic for ground-plane raycasting and the smooth camera animation using TWEEN to interpolate between positions.
