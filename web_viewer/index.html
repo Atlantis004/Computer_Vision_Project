@@ -38,11 +38,10 @@
     <!-- instructions panel showing user controls -->
     <div id="info">
         <b>Week 4: Virtual Tour</b><br>
-        1. <b>Arrows / WASD</b>: Walk around.<br>
-        2. <b>Double Click</b> ground: Teleport.<br>
-        3. <b>Single Click</b> Cones: View Photos.<br>
-        4. <b>'H' Key</b>: Toggle Overview Mode.<br>
-        5. Drag to look.
+        1. <b>Double Click</b> ground: Teleport.<br>
+        2. <b>Single Click</b> Cones: View Photos.<br>
+        3. <b>'H' Key</b>: Toggle Overview Mode.<br>
+        4. Drag to look.
     </div>
 
     <!-- hidden overlay image element - source set dynamically when viewing camera photos -->
@@ -95,12 +94,7 @@
         let modelCenter = new THREE.Vector3(0, 0, 0); // center of the point cloud model
         let isOverview = false; // tracks whether camera is in bird's eye overview mode
 
-        // keyboard state tracking for WASD/arrow key movement
-        const keyState = {
-            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
-            w: false, a: false, s: false, d: false
-        };
-        const walkSpeed = 0.15; // movement speed for keyboard walking
+
 
         // main initialization function - loads data and sets up scene
         async function init() {
@@ -219,18 +213,12 @@
         window.addEventListener('click', onSingleClick);
         window.addEventListener('dblclick', onDoubleClick);
         
-        // keyboard event handlers for walking controls and overview toggle
+        // keyboard event handler for overview toggle
         window.addEventListener('keydown', (e) => {
             // 'H' key toggles between overview and walking mode
             if (e.key === 'h' || e.key === 'H') {
                 toggleOverview();
             }
-            // track key press state for continuous movement
-            if (keyState.hasOwnProperty(e.key)) keyState[e.key] = true;
-        });
-        window.addEventListener('keyup', (e) => {
-            // track key release to stop movement
-            if (keyState.hasOwnProperty(e.key)) keyState[e.key] = false;
         });
 
         let hoveredObj = null; // currently hovered waypoint for highlighting
@@ -302,39 +290,6 @@
             }
         }
 
-        // processes keyboard input for WASD/arrow key movement each frame
-        function processKeyboard() {
-            // don't process movement if controls disabled or in overview mode
-            if (!controls.enabled || isOverview) return;
-
-            // calculate forward direction based on camera orientation (ignoring pitch)
-            const forward = new THREE.Vector3();
-            camera.getWorldDirection(forward);
-            forward.y = 0; // flatten to horizontal plane
-            forward.normalize();
-
-            // calculate right direction perpendicular to forward
-            const right = new THREE.Vector3();
-            right.crossVectors(forward, camera.up).normalize();
-
-            // build movement direction from pressed keys
-            const moveDir = new THREE.Vector3(0, 0, 0);
-
-            if (keyState.ArrowUp || keyState.w) moveDir.add(forward);
-            if (keyState.ArrowDown || keyState.s) moveDir.sub(forward);
-            if (keyState.ArrowRight || keyState.d) moveDir.add(right);
-            if (keyState.ArrowLeft || keyState.a) moveDir.sub(right);
-
-            // apply movement if any direction keys are pressed
-            if (moveDir.lengthSq() > 0) {
-                moveDir.normalize().multiplyScalar(walkSpeed);
-                camera.position.add(moveDir);
-                controls.target.add(moveDir); // move orbit target with camera
-                // hide photo overlay when walking
-                if (overlayImg.style.opacity > 0) overlayImg.style.opacity = 0;
-            }
-        }
-
         // toggles between bird's eye overview mode and walking mode
         function toggleOverview() {
             if (isOverview) {
@@ -399,7 +354,7 @@
                     controls.enabled = true;
 
                     // display the photo associated with this waypoint
-                    overlayImg.src = "../data/" + waypointObj.userData.img;
+                    overlayImg.src = "images/" + waypointObj.userData.img;
                     overlayImg.style.opacity = 0.9;
                 })
                 .start();
@@ -442,10 +397,9 @@
                 .start();
         }
 
-        // main animation loop -> runs every frame
+        // main animation loop - runs every frame
         function animate() {
             requestAnimationFrame(animate);
-            processKeyboard(); // handle keyboard movement
             controls.update(); // update orbit controls (applies damping)
             TWEEN.update(); // update any active animations
             renderer.render(scene, camera); // render the scene
