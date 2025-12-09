@@ -4,7 +4,7 @@ This repository contains our implementation of a modular Structure-from-Motion (
 
 Currently we have reconstructed the point cloud (viewed in CloudCompare):
 
-![video](results/Final_tour.mp4)
+<video src="results/Final_tour.mp4" controls></video>
 
 The next step is to create the web-based virtual tour
 
