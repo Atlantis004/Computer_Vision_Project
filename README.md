@@ -1,4 +1,4 @@
-# 3D Scene Reconstruction and Virtual Tour — CS436 Project
+# 3D Scene Reconstruction and Virtual Tour - CS436 Project
 
 This repository contains our implementation of a modular Structure-from-Motion (SfM) pipeline as per the course CS436 - Computer Vision. The goal is to reconstruct a 3D scene and camera trajectory from a sequence of 2D images, resulting in an interactive web-based virtual tour. 
 
@@ -49,7 +49,7 @@ As per project guidelines:
 
 All input data are stored in `data/` and all results in `results/`.
 
-## Week 1 — Feature Extraction and Matching
+## Week 1 - Feature Extraction and Matching
 
 **Goal:** Implement a feature-matching foundation for the SfM pipeline.
 
@@ -78,7 +78,7 @@ All input data are stored in `data/` and all results in `results/`.
 * Filtered SIFT matches between 5 consecutive image pairs.
 * Top-100 match visualizations saved in `results/week1/`.
 
-## Week 2 — Two-View Reconstruction
+## Week 2 - Two-View Reconstruction
 
 **Goal:** Recover 3D structure and relative camera pose from a pair of images.
 
@@ -110,7 +110,7 @@ All input data are stored in `data/` and all results in `results/`.
 * Sparse two-view reconstruction stored at `results/week2/point_cloud.ply`.
 * Valid [R | t] relative pose between the two cameras.
 
-## Week 3 — Incremental Multi-View SfM and Bundle Adjustment
+## Week 3 - Incremental Multi-View SfM and Bundle Adjustment
 
 **Goal:** Extend the two-view reconstruction to a full image sequence using **PnP** and **Bundle Adjustment**.
 
@@ -189,14 +189,79 @@ After all frames are processed, a final global bundle adjustment is run on the e
 
 **Final Statistics (approximate)**
 
-* Around 27 registered camera poses.
-* Around 136,000 3D points after incremental reconstruction and refinement.
+* 30 registered camera poses.
+* Around 200,000 3D points after incremental reconstruction and refinement.
 * Multiple Bundle Adjustment stages with decreasing reprojection cost.
 
 **Main Output Files**
 
-* `results/week3/final_model.ply` —> final filtered point cloud.
-* `results/week3/project_data.json` —> camera trajectories and point-cloud metadata for Three.js.
+* `results/week3/Milestone3_model.ply` -> final filtered point cloud.
+* `results/week3/project_data.json` -> camera trajectories and point-cloud metadata for Three.js.
+
+* `results/week3/Milestone3_demo_CloudCompare.mp4` -> a showcase of the model generated using CloudCompare
+
+## Week 4 - Interactive Virtual Tour with Three.js
+
+**Goal:** Build an interactive web-based virtual tour that allows users to explore the reconstructed 3D environment and view original photographs from camera positions.
+
+### 1. Data Pipeline and Coordinate Transformation
+
+* Load the exported `project_data.json` containing camera poses and point cloud reference.
+* Transform coordinates from OpenCV conventions (Y-down, Z-forward) to WebGL/Three.js conventions (Y-up, Z-backward):
+  * Apply transformation matrix $M = \text{diag}(1, -1, -1, 1)$ to camera poses.
+  * Negate Y and Z components of point cloud coordinates.
+* Parse 4×4 camera transformation matrices and decompose into position and quaternion rotation.
+
+### 2. Scene Setup
+
+* Initialize Three.js scene with perspective camera (60° FOV) and WebGL renderer with antialiasing.
+* Load point cloud using `PLYLoader` with vertex colors preserved.
+* Compute bounding sphere to determine model center for overview positioning.
+* Set up `OrbitControls` for mouse-based camera rotation with damping for smooth movement.
+
+### 3. Waypoint Visualization
+
+* Create directional cone meshes at each camera position to indicate photo capture locations.
+* Orient cones using the camera's quaternion rotation to show viewing direction.
+* Apply rotation corrections for specific frame ranges where camera orientation changed during recording.
+* Store camera metadata (position, rotation, image filename) in mesh `userData` for retrieval on click.
+
+### 4. Navigation Modes
+
+**Overview Mode (Toggle with 'H' key)**
+* Bird's-eye view positioned above the model center.
+* Smooth camera animation using TWEEN.js with cubic easing.
+* Zoom enabled for exploring the full reconstruction.
+
+**Teleportation (Double-click)**
+* Raycast against point cloud or invisible floor plane to find target position.
+* Animate camera to clicked location while maintaining eye height.
+* Preserve viewing direction by animating orbit target alongside camera position.
+
+**Photo Mode (Single-click on waypoint)**
+* Animate camera to exact waypoint position and orientation.
+* Position interpolation using linear interpolation (Lerp).
+* Rotation interpolation using quaternion tweening (approximating Slerp).
+* On arrival, fade in the original photograph as a full-screen overlay.
+* Dragging the view partially fades the overlay to reveal the 3D scene underneath.
+
+### 5. Interaction Features
+
+* **Hover Effects:** Waypoint cones highlight (color change + scale up) when mouse hovers over them.
+* **Raycasting:** Mouse position converted to normalized device coordinates for accurate 3D intersection detection.
+* **Responsive Design:** Window resize handler maintains correct aspect ratio.
+
+### 6. Animation Loop
+
+* `requestAnimationFrame` loop for smooth 60fps rendering.
+* Update `OrbitControls` each frame for damping effect.
+* Update TWEEN animations for smooth camera transitions.
+
+**Output**
+
+* Interactive virtual tour accessible at `web_viewer/index.html`
+* Final point cloud and video of the tour accesssible at `results/Final_model.ply` and `results/Final_tour.mp4`
+* Supports exploration via teleportation, waypoint navigation, and photo overlay viewing
 
 ## Results
 
