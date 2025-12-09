@@ -4,9 +4,7 @@ This repository contains our implementation of a modular Structure-from-Motion (
 
 Take a look at our final web tour:
 
-<video width="640" height="480" controls>
-  <source src="results/Final_tour.mp4" type="video/mp4">
-</video>
+<video src="https://github.com/Atlantis004/Computer_Vision_Project/blob/main/results/Final_tour.mp4" controls></video>
 
 ## Repository Structure
 
