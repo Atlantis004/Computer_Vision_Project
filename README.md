@@ -2,11 +2,11 @@
 
 This repository contains our implementation of a modular Structure-from-Motion (SfM) pipeline as per the course CS436 - Computer Vision. The goal is to reconstruct a 3D scene and camera trajectory from a sequence of 2D images, resulting in an interactive web-based virtual tour. 
 
-Currently we have reconstructed the point cloud (viewed in CloudCompare):
+Take a look at our final web tour:
 
-<video src="results/Final_tour.mp4" controls></video>
-
-The next step is to create the web-based virtual tour
+<video width="640" height="480" controls>
+  <source src="results/Final_tour.mp4" type="video/mp4">
+</video>
 
 ## Repository Structure
 
