@@ -146,14 +146,13 @@
                     const scale = new THREE.Vector3();
                     matrix.decompose(position, quaternion, scale);
 
-                    // --- ROTATION FIX LOGIC ---
-                    
-                    // 1. extract frame number from filename (e.g., "frame_273.jpg" -> 273)
+                   
+                    // 1. extract frame number from filename
                     // used to apply different rotation corrections for different video segments
                     const match = cam.filename.match(/(\d+)/);
                     const frameNum = match ? parseInt(match[0]) : 0;
 
-                    // 2. base conversion quaternion - flip 180 degrees around X axis
+                    // 2. base conversion quaternion -> flip 180 degrees around X axis
                     // converts from camera coordinate system to Three.js world coordinates
                     const conversion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), -Math.PI);
                     
@@ -161,14 +160,11 @@
                     // some frames have different orientation due to camera rotation during recording
                     let correctionAngle = 0;
 
-                    
                     if((frameNum >= 273 && frameNum <= 331)  || (frameNum >= 166 && frameNum <= 170) || (frameNum >= 221 && frameNum <= 226) || (frameNum >= 18 && frameNum <= 22)) {
-                        // apply -90 degree rotation to compensate for sideways camera orientation
                         correctionAngle = -Math.PI / 2 - 0.5; 
                     }
 
                     if((frameNum >= 171 && frameNum <= 176) || (frameNum >= 252 && frameNum <= 254) || (frameNum >= 316 && frameNum <= 319) || (frameNum >= 298 && frameNum <= 308)) {
-                        // applying drastic -180 degree flip for this segment
                         correctionAngle = -Math.PI;
                     }
 
@@ -193,12 +189,10 @@
                     }
 
                     if((frameNum >= 265 && frameNum <= 272) || (frameNum >= 255 && frameNum <= 259) || (frameNum >= 73 && frameNum <= 83) || (frameNum >= 113 && frameNum <= 123) || (frameNum >= 25 && frameNum <= 41) || (frameNum >= 198 && frameNum <= 216)) {
-                        // next segment rotated +90 degrees
                         correctionAngle = Math.PI / 2;
                     }
 
                     if(frameNum >= 262 && frameNum <= 264) {
-                        // small adjustment for slight tilt
                         correctionAngle = 0.5;
                     }
 
@@ -207,7 +201,6 @@
 
                     // combine: original * conversion * conditional correction
                     const fixedQuaternion = new THREE.Quaternion().copy(quaternion).premultiply(conversion).multiply(correction);
-                    // ---------------------------
 
                     // create cone mesh for this waypoint
                     const waypoint = new THREE.Mesh(coneGeo, waypointMat.clone());
@@ -242,7 +235,6 @@
         }
         init(); // start initialization
 
-        // 3. EVENT LISTENERS
         // register mouse and keyboard event handlers
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('click', onSingleClick);
