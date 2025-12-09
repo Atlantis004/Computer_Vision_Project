@@ -161,10 +161,45 @@
                     // some frames have different orientation due to camera rotation during recording
                     let correctionAngle = 0;
 
-                    // frames 273-331 need additional rotation correction
-                    if (frameNum >= 273 && frameNum <= 331) {
+                    
+                    if((frameNum >= 273 && frameNum <= 331)  || (frameNum >= 166 && frameNum <= 170) || (frameNum >= 221 && frameNum <= 226) || (frameNum >= 18 && frameNum <= 22)) {
                         // apply -90 degree rotation to compensate for sideways camera orientation
                         correctionAngle = -Math.PI / 2 - 0.5; 
+                    }
+
+                    if((frameNum >= 171 && frameNum <= 176) || (frameNum >= 252 && frameNum <= 254) || (frameNum >= 316 && frameNum <= 319) || (frameNum >= 298 && frameNum <= 308)) {
+                        // applying drastic -180 degree flip for this segment
+                        correctionAngle = -Math.PI;
+                    }
+
+                    if(frameNum >= 300 && frameNum <= 305)
+                    {
+                        correctionAngle += -1.5;
+                    }
+
+                    if(frameNum >= 298 && frameNum <= 299)
+                    {
+                        correctionAngle += -3.5;
+                    }
+
+                    if(frameNum >= 293 && frameNum <= 297)
+                    {
+                        correctionAngle += 1.0;
+                    }
+
+                    if(frameNum >= 320 && frameNum <= 325)
+                    {
+                        correctionAngle = -3.0;
+                    }
+
+                    if((frameNum >= 265 && frameNum <= 272) || (frameNum >= 255 && frameNum <= 259) || (frameNum >= 73 && frameNum <= 83) || (frameNum >= 113 && frameNum <= 123) || (frameNum >= 25 && frameNum <= 41) || (frameNum >= 198 && frameNum <= 216)) {
+                        // next segment rotated +90 degrees
+                        correctionAngle = Math.PI / 2;
+                    }
+
+                    if(frameNum >= 262 && frameNum <= 264) {
+                        // small adjustment for slight tilt
+                        correctionAngle = 0.5;
                     }
 
                     // create correction quaternion for Y-axis rotation
@@ -267,7 +302,10 @@
             raycaster.setFromCamera(mouse, camera);
             const waypointHits = raycaster.intersectObjects(waypoints);
             if (waypointHits.length > 0) {
-                enterPhotoMode(waypointHits[0].object);
+                const clickedWaypoint = waypointHits[0].object;
+                // logging frame info to console for rotation debugging
+                console.log(`Clicked Frame: ${clickedWaypoint.userData.img} (ID: ${clickedWaypoint.userData.id})`);
+                enterPhotoMode(clickedWaypoint);
             }
         }
 
