@@ -19,6 +19,7 @@ root/
 ├── web_viewer          # interactive web viewer (final result)
 ├── run_pipeline.py     # main .py file to run the entire PnP pipeline
 ├── AI_Usage.md         # report containing the use of AI to assist with the project code
+├── project_report.pdf  # detailed report of the project 
 │
 └── README.md
 ```
